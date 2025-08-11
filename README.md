@@ -1,9 +1,10 @@
-# Nosara Blue Classes Scraper
+# Nosara Blue Classes Scraper API
 
-Web scraper để thu thập dữ liệu lớp học từ trang web Nosara Blue.
+Web scraper API để thu thập dữ liệu lớp học từ trang web Nosara Blue. Có thể được gọi từ n8n hoặc các ứng dụng khác.
 
 ## 🎯 Tính năng
 
+- **API Endpoints** để trigger scraping từ n8n
 - Tự động thu thập thông tin lớp học trong 30 ngày
 - Xử lý navigation giữa các tuần
 - Lưu dữ liệu dưới dạng JSON
@@ -14,6 +15,7 @@ Web scraper để thu thập dữ liệu lớp học từ trang web Nosara Blue.
 
 - Python 3.8+
 - Playwright
+- Flask
 
 ## 🛠️ Cài đặt
 
@@ -31,9 +33,69 @@ playwright install
 
 ## 🚀 Sử dụng
 
+### Chạy locally:
 ```bash
 python main.py
 ```
+
+### API Endpoints:
+
+#### 1. **GET /** - Home page
+```bash
+curl https://your-app.onrender.com/
+```
+Trả về thông tin API và các endpoints có sẵn.
+
+#### 2. **POST /scrape** - Trigger scraping
+```bash
+curl -X POST https://your-app.onrender.com/scrape
+```
+**Dành cho n8n:** Gọi endpoint này để bắt đầu thu thập dữ liệu.
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Đã bắt đầu scraping",
+  "status": {
+    "is_running": true,
+    "last_run": null,
+    "total_classes": 0,
+    "error": null
+  }
+}
+```
+
+#### 3. **GET /status** - Kiểm tra trạng thái
+```bash
+curl https://your-app.onrender.com/status
+```
+Kiểm tra xem scraping có đang chạy không và thông tin lần chạy cuối.
+
+#### 4. **GET /data** - Lấy dữ liệu
+```bash
+curl https://your-app.onrender.com/data
+```
+Lấy dữ liệu lớp học mới nhất đã thu thập được.
+
+## 🔧 Cấu hình n8n
+
+Trong n8n, bạn có thể:
+
+1. **Trigger scraping:**
+   - Node: HTTP Request
+   - Method: POST
+   - URL: `https://your-app.onrender.com/scrape`
+
+2. **Kiểm tra trạng thái:**
+   - Node: HTTP Request
+   - Method: GET
+   - URL: `https://your-app.onrender.com/status`
+
+3. **Lấy dữ liệu:**
+   - Node: HTTP Request
+   - Method: GET
+   - URL: `https://your-app.onrender.com/data`
 
 ## 📊 Output
 
@@ -63,8 +125,9 @@ services:
   - type: web
     name: nosara-blue-scraper
     env: python
-    buildCommand: pip install -r requirements.txt && playwright install
+    buildCommand: pip install -r requirements.txt && playwright install chromium
     startCommand: python main.py
+    healthCheckPath: /
 ```
 
 ## 📝 License
