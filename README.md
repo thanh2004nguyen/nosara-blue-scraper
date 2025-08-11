@@ -15,8 +15,8 @@ Web scraper API để thu thập dữ liệu lớp học từ trang web Nosara B
 
 - Python 3.11
 - Playwright
-- Flask
-- Gunicorn
+- FastAPI
+- Uvicorn
 
 ## 🛠️ Cài đặt
 
@@ -39,9 +39,9 @@ playwright install
 python main.py
 ```
 
-### Chạy với gunicorn (production):
+### Chạy với uvicorn (production):
 ```bash
-gunicorn main:app --bind 0.0.0.0:5000 --workers 1 --timeout 300
+uvicorn main:app --host 0.0.0.0 --port 5000
 ```
 
 ### API Endpoints:
@@ -132,7 +132,7 @@ services:
     name: nosara-blue-scraper
     env: python
     buildCommand: pip install -r requirements.txt && playwright install chromium
-    startCommand: gunicorn main:app --bind 0.0.0.0:$PORT --workers 1 --timeout 300
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /
 ```
 

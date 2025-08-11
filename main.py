@@ -4,11 +4,12 @@ from datetime import datetime, timezone, timedelta
 import json
 import re
 import traceback
-from flask import Flask, jsonify, request
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 import threading
 import os
 
-app = Flask(__name__)
+app = FastAPI()
 
 CLASS_ITEMS_XPATH = "//div[@role='list']//div[@role='listitem']"
 
@@ -322,9 +323,9 @@ def run_scraper():
     finally:
         scraping_status["is_running"] = False
 
-@app.route('/')
+@app.get('/')
 def home():
-    return jsonify({
+    return JSONResponse({
         "message": "Nosara Blue Classes Scraper API",
         "status": "running",
         "endpoints": {
@@ -334,57 +335,58 @@ def home():
         }
     })
 
-@app.route('/scrape', methods=['POST'])
+@app.post('/scrape')
 def trigger_scrape():
     """API endpoint để n8n gọi và trigger scraping"""
     global scraping_status
     
     if scraping_status["is_running"]:
-        return jsonify({
+        raise HTTPException(status_code=409, detail={
             "success": False,
             "message": "Scraping đang chạy, vui lòng đợi",
             "status": scraping_status
-        }), 409
+        })
     
     # Chạy scraper trong thread riêng
     thread = threading.Thread(target=run_scraper)
     thread.daemon = True
     thread.start()
     
-    return jsonify({
+    return JSONResponse({
         "success": True,
         "message": "Đã bắt đầu scraping",
         "status": scraping_status
     })
 
-@app.route('/status', methods=['GET'])
+@app.get('/status')
 def get_status():
     """API endpoint để kiểm tra trạng thái scraping"""
-    return jsonify(scraping_status)
+    return JSONResponse(scraping_status)
 
-@app.route('/data', methods=['GET'])
+@app.get('/data')
 def get_data():
     """API endpoint để lấy dữ liệu mới nhất"""
     try:
         if os.path.exists('classes_data.json'):
             with open('classes_data.json', 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            return jsonify({
+            return JSONResponse({
                 "success": True,
                 "total_classes": len(data),
                 "data": data
             })
         else:
-            return jsonify({
+            raise HTTPException(status_code=404, detail={
                 "success": False,
                 "message": "Chưa có dữ liệu"
-            }), 404
+            })
     except Exception as e:
-        return jsonify({
+        raise HTTPException(status_code=500, detail={
             "success": False,
             "message": f"Lỗi đọc dữ liệu: {str(e)}"
-        }), 500
+        })
 
 if __name__ == "__main__":
+    import uvicorn
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
+    uvicorn.run(app, host='0.0.0.0', port=port)
