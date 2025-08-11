@@ -13,13 +13,7 @@ app = FastAPI()
 
 CLASS_ITEMS_XPATH = "//div[@role='list']//div[@role='listitem']"
 
-# Global variable to store scraping status
-scraping_status = {
-    "is_running": False,
-    "last_run": None,
-    "total_classes": 0,
-    "error": None
-}
+
 
 def get_cst_date():
     cst = timezone(timedelta(hours=-6))
@@ -248,16 +242,44 @@ def save_classes_to_file(classes_info, filename="classes_data.json"):
         print(f"✗ Lỗi khi lưu file: {e}")
         return False
 
+# Global variable to store scraping status
+scraping_status = {
+    "is_running": False,
+    "last_run": None,
+    "total_classes": 0,
+    "error": None,
+    "progress": 0,
+    "current_date": None
+}
+
 def run_scraper():
-    """Hàm chạy scraper trong thread riêng"""
+    """Hàm chạy scraper trong thread riêng - tối ưu cho Render Free tier"""
     global scraping_status
     
     scraping_status["is_running"] = True
     scraping_status["error"] = None
+    scraping_status["progress"] = 0
+    scraping_status["current_date"] = None
     
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)  # headless=True cho production
+            # Cấu hình browser cho Render Linux environment
+            browser = p.chromium.launch(
+                headless=True,
+                args=[
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-accelerated-2d-canvas',
+                    '--no-first-run',
+                    '--no-zygote',
+                    '--disable-gpu',
+                    '--single-process',
+                    '--disable-extensions',
+                    '--disable-plugins',
+                    '--disable-images'
+                ]
+            )
             context = browser.new_context()
             page = context.new_page()
             url = "https://www.nosarablue.com/classes"
@@ -269,11 +291,17 @@ def run_scraper():
                 print("✓ Trang đã load")
                 
                 current_date = get_cst_date()
-                end_date = current_date + timedelta(days=30)
+                # Giảm xuống 7 ngày để tránh timeout trên Render Free tier
+                end_date = current_date + timedelta(days=7)
                 all_classes_info = []
+                total_days = (end_date - current_date).days + 1
+                processed_days = 0
                 
                 while current_date <= end_date:
-                    print(f"\n🔎 Xử lý ngày: {current_date}")
+                    scraping_status["current_date"] = current_date.strftime('%Y-%m-%d')
+                    scraping_status["progress"] = int((processed_days / total_days) * 100)
+                    
+                    print(f"\n🔎 Xử lý ngày: {current_date} ({processed_days + 1}/{total_days})")
                     try:
                         prev_count = page.locator(CLASS_ITEMS_XPATH).count()
                     except:
@@ -283,6 +311,7 @@ def run_scraper():
                     if not found:
                         print(f"⚠️ Bỏ qua ngày {current_date} (không tìm thấy trên calendar).")
                         current_date = get_next_day(current_date)
+                        processed_days += 1
                         continue
                     
                     changed = wait_for_content_change(page, prev_count, timeout_ms=9000)
@@ -299,16 +328,19 @@ def run_scraper():
                         print(f"ℹ️ Ngày {current_date}: không lấy được lớp (rỗng).")
                     
                     current_date = get_next_day(current_date)
+                    processed_days += 1
                     time.sleep(0.3)
                 
                 if all_classes_info:
                     save_classes_to_file(all_classes_info)
                     scraping_status["total_classes"] = len(all_classes_info)
+                    print(f"✅ Hoàn thành! Đã thu thập {len(all_classes_info)} lớp học.")
                 else:
                     print("⚠️ Không có dữ liệu thu thập được.")
                     scraping_status["total_classes"] = 0
                 
                 scraping_status["last_run"] = datetime.now().isoformat()
+                scraping_status["progress"] = 100
                 
             except Exception as e:
                 print("✗ Lỗi chạy:", e)
@@ -322,6 +354,7 @@ def run_scraper():
         scraping_status["error"] = str(e)
     finally:
         scraping_status["is_running"] = False
+        scraping_status["current_date"] = None
 
 @app.get('/')
 def home():
@@ -330,7 +363,7 @@ def home():
         "status": "running",
         "endpoints": {
             "/scrape": "POST - Trigger scraping",
-            "/status": "GET - Get scraping status",
+            "/status": "GET - Get scraping status", 
             "/data": "GET - Get latest data"
         }
     })
@@ -388,5 +421,5 @@ def get_data():
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 8000))
     uvicorn.run(app, host='0.0.0.0', port=port)

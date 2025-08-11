@@ -1,141 +1,94 @@
-# Nosara Blue Classes Scraper API
+# Nosara Blue Classes Scraper
 
-Web scraper API để thu thập dữ liệu lớp học từ trang web Nosara Blue. Có thể được gọi từ n8n hoặc các ứng dụng khác.
+API để scrape thông tin lớp học từ website Nosara Blue.
 
-## 🎯 Tính năng
+## Tính năng
 
-- **API Endpoints** để trigger scraping từ n8n
-- Tự động thu thập thông tin lớp học trong 30 ngày
-- Xử lý navigation giữa các tuần
-- Lưu dữ liệu dưới dạng JSON
-- Hỗ trợ format thời gian 24h
-- Xử lý các trường hợp "No Classes Available"
+- Scrape thông tin lớp học trong 7 ngày tới
+- API endpoints để trigger scraping và lấy dữ liệu
+- Tối ưu cho Render Free tier
+- Chạy async trong background thread
 
-## 📋 Yêu cầu
+## Deploy lên Render
 
-- Python 3.11
-- Playwright
-- FastAPI
-- Uvicorn
+### 1. Chuẩn bị
 
-## 🛠️ Cài đặt
+Đảm bảo có các file sau trong repo:
+- `main.py` - Code chính
+- `requirements.txt` - Dependencies
+- `render.yaml` - Cấu hình Render (optional)
 
+### 2. Deploy
+
+1. Tạo repo GitHub chứa code này
+2. Vào [render.com](https://render.com) → New Web Service
+3. Connect repo GitHub
+4. Chọn environment: **Python 3.x**
+5. Cấu hình:
+   - **Build Command**: `pip install -r requirements.txt && playwright install chromium`
+   - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+6. Deploy
+
+### 3. Sử dụng API
+
+#### Trigger scraping
 ```bash
-# Clone repository
-git clone <your-repo-url>
-cd nosara-blue-scraper
-
-# Cài đặt dependencies
-pip install -r requirements.txt
-
-# Cài đặt Playwright browsers
-playwright install
+POST https://your-app-name.onrender.com/scrape
 ```
 
-## 🚀 Sử dụng
-
-### Chạy locally:
+#### Kiểm tra trạng thái
 ```bash
-python main.py
+GET https://your-app-name.onrender.com/status
 ```
 
-### Chạy với uvicorn (production):
+#### Lấy dữ liệu
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 5000
+GET https://your-app-name.onrender.com/data
 ```
 
-### API Endpoints:
+## API Endpoints
 
-#### 1. **GET /** - Home page
-```bash
-curl https://your-app.onrender.com/
-```
-Trả về thông tin API và các endpoints có sẵn.
+### GET /
+Trang chủ với thông tin API
 
-#### 2. **POST /scrape** - Trigger scraping
-```bash
-curl -X POST https://your-app.onrender.com/scrape
-```
-**Dành cho n8n:** Gọi endpoint này để bắt đầu thu thập dữ liệu.
+### POST /scrape
+Trigger scraping process. Trả về ngay lập tức, scraping chạy trong background.
 
-**Response:**
+### GET /status
+Lấy trạng thái scraping:
 ```json
 {
-  "success": true,
-  "message": "Đã bắt đầu scraping",
-  "status": {
-    "is_running": true,
-    "last_run": null,
-    "total_classes": 0,
-    "error": null
-  }
+  "is_running": false,
+  "last_run": "2024-01-15T10:30:00",
+  "total_classes": 25,
+  "error": null,
+  "progress": 100,
+  "current_date": null
 }
 ```
 
-#### 3. **GET /status** - Kiểm tra trạng thái
-```bash
-curl https://your-app.onrender.com/status
-```
-Kiểm tra xem scraping có đang chạy không và thông tin lần chạy cuối.
+### GET /data
+Lấy dữ liệu lớp học mới nhất
 
-#### 4. **GET /data** - Lấy dữ liệu
-```bash
-curl https://your-app.onrender.com/data
-```
-Lấy dữ liệu lớp học mới nhất đã thu thập được.
+## Lưu ý Render Free Tier
 
-## 🔧 Cấu hình n8n
+- **Timeout**: Request tối đa 90 giây
+- **Sleep**: App ngủ sau 15 phút không có traffic
+- **Filesystem**: Reset khi restart container
+- **Memory**: Giới hạn 512MB RAM
 
-Trong n8n, bạn có thể:
+## Tối ưu đã thực hiện
 
-1. **Trigger scraping:**
-   - Node: HTTP Request
-   - Method: POST
-   - URL: `https://your-app.onrender.com/scrape`
+1. **Giảm thời gian scrape**: Từ 30 ngày xuống 7 ngày
+2. **Browser args**: Tối ưu cho Linux environment
+3. **Progress tracking**: Theo dõi tiến độ scraping
+4. **Async processing**: Trả về ngay, xử lý background
+5. **Error handling**: Xử lý lỗi tốt hơn
 
-2. **Kiểm tra trạng thái:**
-   - Node: HTTP Request
-   - Method: GET
-   - URL: `https://your-app.onrender.com/status`
+## N8n Integration
 
-3. **Lấy dữ liệu:**
-   - Node: HTTP Request
-   - Method: GET
-   - URL: `https://your-app.onrender.com/data`
+Sử dụng trong n8n workflow:
 
-## 📊 Output
-
-Dữ liệu được lưu vào file `classes_data.json` với format:
-
-```json
-{
-  "event_date": "2025-08-11",
-  "start_time": "09:00",
-  "end_time": "10:00",
-  "title": "Mat Pilates",
-  "instructor": "Laura Murillo Danza",
-  "location": "Nosara Blue",
-  "source_url": "https://www.nosarablue.com/classes",
-  "description": "Mat Pilates - 1 hr - 50 spots available",
-  "category": "",
-  "tags": ""
-}
-```
-
-## 🔧 Cấu hình Render
-
-Để deploy lên Render, tạo file `render.yaml`:
-
-```yaml
-services:
-  - type: web
-    name: nosara-blue-scraper
-    env: python
-    buildCommand: pip install -r requirements.txt && playwright install chromium
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /
-```
-
-## 📝 License
-
-MIT License
+1. **Trigger**: POST `/scrape` để bắt đầu
+2. **Wait**: Poll `/status` để đợi hoàn thành
+3. **Get Data**: GET `/data` để lấy kết quả
