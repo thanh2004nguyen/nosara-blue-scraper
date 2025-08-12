@@ -1,0 +1,5 @@
+[33m36ac4a5[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Simplify to single endpoint - scrape and return data directly
+[33m5a7342e[m Update scraper logic with improved data extraction and 30-day limit
+[33md25acca[m Fix Docker: use official Playwright base image to resolve dependencies
+[33mfc2d374[m Fix Python version to 3.10.12 and remove greenlet dependency
+[33mf19aa37[m Fix Python version compatibility: add runtime.txt and update requirements
