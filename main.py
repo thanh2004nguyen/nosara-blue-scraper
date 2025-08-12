@@ -33,205 +33,64 @@ def run_scraper_sync():
             )
             page = browser.new_page()
             
+            print("🚀 Bắt đầu truy cập trang web...")
             page.goto("https://www.nosarablue.com/classes")
             print("✅ Đã truy cập trang web thành công")
             
-            time.sleep(5)  # Giảm thời gian chờ
-            print("⏳ Đã chờ 5 giây")
+            # Lấy title để kiểm tra
+            title = page.title()
+            print(f"📄 Title: {title}")
             
-            classes_data = []
-            week_count = 0
-            total_processed_days = 0
-            max_days = 5  # Giảm xuống 5 ngày để test
-            daily_summary = []  # Lưu tổng kết theo ngày
+            # Lấy URL hiện tại
+            current_url = page.url
+            print(f"🔗 URL: {current_url}")
             
-            while True:
-                week_count += 1
-                print(f"\n{'='*60}")
-                print(f"📅 TUẦN {week_count}")
-                print(f"{'='*60}")
-                
-                # Tìm ngày đang được focus
-                calendar_divs = page.locator('div[role="list"]')
-                print(f"🔍 Tìm thấy {calendar_divs.count()} calendar divs")
-                
-                if calendar_divs.count() == 0:
-                    print("❌ Không tìm thấy calendar")
-                    break
-                
-                # Lấy tất cả buttons trong calendar
-                buttons = calendar_divs.first.locator('button')
-                total_days = buttons.count()
-                print(f"📅 Tìm thấy {total_days} ngày trong calendar")
-                
-                # Tìm button đang được disabled
-                disabled_button_index = None
-                for i in range(total_days):
-                    button = buttons.nth(i)
-                    if button.get_attribute("disabled") is not None:
-                        disabled_button_index = i
-                        current_date = button.get_attribute("aria-label")
-                        print(f"🎯 Tìm thấy button disabled: {current_date} (index {i})")
-                        break
-                
-                if disabled_button_index is None:
-                    print("❌ Không tìm thấy button disabled")
-                    break
-                
-                # Lặp từ button disabled trở đi
-                for day_index in range(disabled_button_index, total_days):
-                    # Kiểm tra điều kiện dừng
-                    if total_processed_days >= max_days:
-                        print(f"\n🎯 Đã đạt giới hạn {max_days} ngày, dừng scraper")
-                        break
-                    
-                    total_processed_days += 1
-                    print(f"\n{'='*50}")
-                    print(f"📅 Đang xử lý ngày {total_processed_days}/{max_days}")
-                    
-                    # Lấy ngày hiện tại đang được focus
-                    buttons = calendar_divs.first.locator('button')
-                    current_date = None
-                    for i in range(buttons.count()):
-                        button = buttons.nth(i)
-                        if button.get_attribute("disabled") is not None:
-                            current_date = button.get_attribute("aria-label")
-                            print(f"🎯 Ngày hiện tại: {current_date}")
-                            break
-                    
-                    # Lấy dữ liệu lớp học cho ngày hiện tại
-                    if calendar_divs.count() >= 2:
-                        classes_div = calendar_divs.nth(1)
-                        list_items = classes_div.locator('div[role="listitem"]')
-                        day_classes_count = list_items.count()
-                        
-                        print(f"📊 Tìm thấy {day_classes_count} lớp học cho ngày {current_date}")
-                        
-                        if day_classes_count > 0:
-                            for i in range(day_classes_count):
-                                item = list_items.nth(i)
-                                all_texts = item.locator('*').all_text_contents()
-                                unique_texts = list(dict.fromkeys([text.strip() for text in all_texts if text.strip()]))
-                                
-                                print(f"🔍 Raw texts for class {i+1}: {unique_texts}")
-                                
-                                # Cải thiện logic xử lý thông tin
-                                # Tìm thời gian (chứa am/pm và có dạng giờ:phút)
-                                time_info = None
-                                for text in unique_texts:
-                                    if ('am' in text.lower() or 'pm' in text.lower()) and ':' in text and len(text) < 10:
-                                        time_info = text
-                                        break
-                                
-                                # Tìm thời lượng (chứa hr và min)
-                                duration_info = None
-                                for text in unique_texts:
-                                    if ('hr' in text.lower() or 'min' in text.lower()) and len(text) < 15:
-                                        duration_info = text
-                                        break
-                                
-                                # Tìm tên lớp (loại trừ các từ khóa khác)
-                                class_name_info = None
-                                for text in unique_texts:
-                                    if (text != time_info and text != duration_info and 
-                                        'spots' not in text.lower() and 'book' not in text.lower() and
-                                        'am' not in text.lower() and 'pm' not in text.lower() and
-                                        len(text) > 5 and len(text) < 50):
-                                        # Kiểm tra xem có phải tên người không (quá ngắn hoặc quá dài)
-                                        if not (len(text) < 3 or len(text) > 30):
-                                            class_name_info = text
-                                            break
-                                
-                                # Tìm tên giáo viên (thường là tên người, không chứa từ đặc biệt)
-                                instructor_info = None
-                                for text in unique_texts:
-                                    if (text != time_info and text != duration_info and text != class_name_info and
-                                        'spots' not in text.lower() and 'book' not in text.lower() and
-                                        'am' not in text.lower() and 'pm' not in text.lower() and
-                                        'hr' not in text.lower() and 'min' not in text.lower() and
-                                        len(text) > 2 and len(text) < 30):
-                                        # Kiểm tra xem có phải tên người không
-                                        if not any(char.isdigit() for char in text):
-                                            instructor_info = text
-                                            break
-                                
-                                # Tìm description (spots)
-                                description_info = None
-                                for text in unique_texts:
-                                    if 'spots' in text.lower() and len(text) < 30:
-                                        description_info = text
-                                        break
-                                
-                                class_info = {
-                                    'date': current_date,
-                                    'class_number': i + 1,
-                                    'time': time_info,
-                                    'duration': duration_info,
-                                    'class_name': class_name_info,
-                                    'instructor': instructor_info,
-                                    'description': description_info
-                                }
-                                classes_data.append(class_info)
-                                
-                                print(f"  Lớp {i+1}: {time_info} - {class_name_info} - {instructor_info}")
-                            
-                            print(f"✅ Ngày {current_date}: Đã scraper được {day_classes_count} lớp học")
-                            # Lưu tổng kết ngày
-                            daily_summary.append(f"Ngày {current_date}: {day_classes_count} tiết học")
-                        else:
-                            print(f"⚠️ Ngày {current_date}: Không có lớp học nào")
-                            # Lưu tổng kết ngày
-                            daily_summary.append(f"Ngày {current_date}: 0 tiết học")
-                    
-                    # Click vào button tiếp theo (nếu không phải button cuối và chưa đạt giới hạn)
-                    if day_index < total_days - 1 and total_processed_days < max_days:
-                        print(f"🔄 Click vào button tiếp theo...")
-                        next_button = buttons.nth(day_index + 1)
-                        next_button.click()
-                        print(f"✅ Đã click vào button {day_index + 2}")
-                        
-                        # Chờ 2 giây để dữ liệu hiện lên
-                        time.sleep(2)
-                        print("⏳ Đã chờ 2 giây")
-                    else:
-                        print("🏁 Đã xử lý xong tất cả các ngày trong tuần")
-                        break
-                
-                # Kiểm tra điều kiện dừng sau khi xử lý tuần
-                if total_processed_days >= max_days:
-                    print(f"\n🎯 Đã đạt giới hạn {max_days} ngày, dừng scraper")
-                    break
-                
-                # Bỏ qua Next Week để test nhanh
-                print("🛑 Dừng sau tuần đầu tiên để test")
-                break
+            time.sleep(3)
+            print("⏳ Đã chờ 3 giây")
+            
+            # Kiểm tra xem có calendar không
+            calendar_divs = page.locator('div[role="list"]')
+            calendar_count = calendar_divs.count()
+            print(f"🔍 Tìm thấy {calendar_count} calendar divs")
+            
+            # Lấy tất cả text trên trang để debug
+            page_text = page.text_content('body')
+            print(f"📝 Page text length: {len(page_text) if page_text else 0}")
+            
+            # Kiểm tra xem có button nào không
+            all_buttons = page.locator('button')
+            button_count = all_buttons.count()
+            print(f"🔘 Tìm thấy {button_count} buttons")
+            
+            # Kiểm tra xem có text "Classes" không
+            if page_text and "Classes" in page_text:
+                print("✅ Tìm thấy text 'Classes' trên trang")
+            else:
+                print("❌ Không tìm thấy text 'Classes'")
+            
+            # Thử lấy một số text mẫu
+            if page_text:
+                sample_text = page_text[:500]
+                print(f"📄 Sample text: {sample_text}")
             
             browser.close()
             
-            # Lưu dữ liệu vào file
-            if classes_data:
-                with open('classes_data.json', 'w', encoding='utf-8') as f:
-                    json.dump(classes_data, f, ensure_ascii=False, indent=2)
-                print(f"✅ Đã lưu {len(classes_data)} lớp học vào file")
-            
-            # In tổng kết
-            print(f"\n{'='*60}")
-            print("📋 TỔNG KẾT CHI TIẾT")
-            print(f"{'='*60}")
-            for summary in daily_summary:
-                print(summary)
-            
-            print(f"\n{'='*60}")
-            print(f"🎯 TỔNG KẾT CUỐI CÙNG")
-            print(f"{'='*60}")
-            print(f"Total {total_processed_days} ngày: {len(classes_data)} tiết học")
-            
+            # Trả về thông tin debug
             return {
                 "success": True,
-                "total_days": total_processed_days,
-                "total_classes": len(classes_data),
-                "daily_summary": daily_summary,
-                "data": classes_data
+                "debug_info": {
+                    "title": title,
+                    "url": current_url,
+                    "calendar_divs_count": calendar_count,
+                    "buttons_count": button_count,
+                    "page_text_length": len(page_text) if page_text else 0,
+                    "has_classes_text": "Classes" in page_text if page_text else False,
+                    "sample_text": page_text[:200] if page_text else None
+                },
+                "total_days": 0,
+                "total_classes": 0,
+                "daily_summary": [],
+                "data": []
             }
             
     except Exception as e:
@@ -240,6 +99,7 @@ def run_scraper_sync():
         return {
             "success": False,
             "error": str(e),
+            "debug_info": None,
             "total_days": 0,
             "total_classes": 0,
             "daily_summary": [],
