@@ -134,10 +134,13 @@ def run_scraper_sync():
                         if day_classes_count > 0:
                             for i in range(day_classes_count):
                                 item = list_items.nth(i)
+                                # Lấy tất cả text trong item này
                                 all_texts = item.locator('*').all_text_contents()
                                 unique_texts = list(dict.fromkeys([text.strip() for text in all_texts if text.strip()]))
                                 
-                                # Cải thiện logic xử lý thông tin
+                                print(f"    Debug - Lớp {i+1} texts: {unique_texts}")
+                                
+                                # Cải thiện logic xử lý thông tin cho từng lớp riêng biệt
                                 # Tìm thời gian (chứa am/pm và có dạng giờ:phút)
                                 time_info = None
                                 for text in unique_texts:
@@ -158,6 +161,7 @@ def run_scraper_sync():
                                     if (text != time_info and text != duration_info and 
                                         'spots' not in text.lower() and 'book' not in text.lower() and
                                         'am' not in text.lower() and 'pm' not in text.lower() and
+                                        'hr' not in text.lower() and 'min' not in text.lower() and
                                         len(text) > 5 and len(text) < 50):
                                         # Kiểm tra xem có phải tên người không (quá ngắn hoặc quá dài)
                                         if not (len(text) < 3 or len(text) > 30):
@@ -185,13 +189,16 @@ def run_scraper_sync():
                                         break
                                 
                                 class_info = {
-                                    'date': current_date,
-                                    'class_number': i + 1,
-                                    'time': time_info,
-                                    'duration': duration_info,
-                                    'class_name': class_name_info,
+                                    'event_date': current_date,
+                                    'start_time': time_info,
+                                    'end_time': duration_info,  # Sử dụng duration_info thay vì để trống
+                                    'title': class_name_info,
                                     'instructor': instructor_info,
-                                    'description': description_info
+                                    'location': 'nosarablue',
+                                    'source_url': 'https://www.nosarablue.com/classes',
+                                    'description': description_info,
+                                    'category': '',
+                                    'tags': ''
                                 }
                                 classes_data.append(class_info)
                                 
@@ -239,7 +246,7 @@ def run_scraper_sync():
                         next_week_button = None
                 except:
                     pass
-                
+
                 # Cách 2: Tìm theo aria-label
                 if next_week_button is None:
                     try:
@@ -321,7 +328,7 @@ def run_scraper_sync():
                 "daily_summary": daily_summary,
                 "data": classes_data
             }
-            
+                
     except Exception as e:
         print("✗ Lỗi:", e)
         return {
