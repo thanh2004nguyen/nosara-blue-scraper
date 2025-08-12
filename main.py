@@ -6,32 +6,12 @@ import re
 import traceback
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
-import threading
 import os
 
 app = FastAPI()
 
-# Global variable to store scraping status
-scraping_status = {
-    "is_running": False,
-    "last_run": None,
-    "total_classes": 0,
-    "error": None,
-    "progress": 0,
-    "current_date": None,
-    "daily_summary": []
-}
-
-def run_scraper():
-    """Hàm chạy scraper trong thread riêng - sử dụng logic mới từ test_scraper.py"""
-    global scraping_status
-    
-    scraping_status["is_running"] = True
-    scraping_status["error"] = None
-    scraping_status["progress"] = 0
-    scraping_status["current_date"] = None
-    scraping_status["daily_summary"] = []
-    
+def run_scraper_sync():
+    """Hàm chạy scraper đồng bộ và trả về dữ liệu trực tiếp"""
     try:
         with sync_playwright() as p:
             # Cấu hình browser cho Render Linux environment
@@ -104,7 +84,6 @@ def run_scraper():
                         break
                     
                     total_processed_days += 1
-                    scraping_status["progress"] = int((total_processed_days / max_days) * 100)
                     print(f"\n{'='*50}")
                     print(f"📅 Đang xử lý ngày {total_processed_days}/{max_days}")
                     
@@ -115,7 +94,6 @@ def run_scraper():
                         button = buttons.nth(i)
                         if button.get_attribute("disabled") is not None:
                             current_date = button.get_attribute("aria-label")
-                            scraping_status["current_date"] = current_date
                             print(f"🎯 Ngày hiện tại: {current_date}")
                             break
                     
@@ -298,12 +276,6 @@ def run_scraper():
                     json.dump(classes_data, f, ensure_ascii=False, indent=2)
                 print(f"✅ Đã lưu {len(classes_data)} lớp học vào file")
             
-            # Cập nhật status
-            scraping_status["total_classes"] = len(classes_data)
-            scraping_status["daily_summary"] = daily_summary
-            scraping_status["last_run"] = datetime.now().isoformat()
-            scraping_status["progress"] = 100
-            
             # In tổng kết
             print(f"\n{'='*60}")
             print("📋 TỔNG KẾT CHI TIẾT")
@@ -316,12 +288,24 @@ def run_scraper():
             print(f"{'='*60}")
             print(f"Total {total_processed_days} ngày: {len(classes_data)} tiết học")
             
+            return {
+                "success": True,
+                "total_days": total_processed_days,
+                "total_classes": len(classes_data),
+                "daily_summary": daily_summary,
+                "data": classes_data
+            }
+            
     except Exception as e:
         print("✗ Lỗi:", e)
-        scraping_status["error"] = str(e)
-    finally:
-        scraping_status["is_running"] = False
-        scraping_status["current_date"] = None
+        return {
+            "success": False,
+            "error": str(e),
+            "total_days": 0,
+            "total_classes": 0,
+            "daily_summary": [],
+            "data": []
+        }
 
 @app.get('/')
 def home():
@@ -329,62 +313,17 @@ def home():
         "message": "Nosara Blue Classes Scraper API",
         "status": "running",
         "endpoints": {
-            "/scrape": "POST - Trigger scraping",
-            "/status": "GET - Get scraping status", 
-            "/data": "GET - Get latest data"
+            "/scrape": "POST - Scrape data and return results directly"
         }
     })
 
 @app.post('/scrape')
-def trigger_scrape():
-    """API endpoint để n8n gọi và trigger scraping"""
-    global scraping_status
-    
-    if scraping_status["is_running"]:
-        raise HTTPException(status_code=409, detail={
-            "success": False,
-            "message": "Scraping đang chạy, vui lòng đợi",
-            "status": scraping_status
-        })
-    
-    # Chạy scraper trong thread riêng
-    thread = threading.Thread(target=run_scraper)
-    thread.daemon = True
-    thread.start()
-    
-    return JSONResponse({
-        "success": True,
-        "message": "Đã bắt đầu scraping",
-        "status": scraping_status
-    })
-
-@app.get('/status')
-def get_status():
-    """API endpoint để kiểm tra trạng thái scraping"""
-    return JSONResponse(scraping_status)
-
-@app.get('/data')
-def get_data():
-    """API endpoint để lấy dữ liệu mới nhất"""
-    try:
-        if os.path.exists('classes_data.json'):
-            with open('classes_data.json', 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            return JSONResponse({
-                "success": True,
-                "total_classes": len(data),
-                "data": data
-            })
-        else:
-            raise HTTPException(status_code=404, detail={
-                "success": False,
-                "message": "Chưa có dữ liệu"
-            })
-    except Exception as e:
-        raise HTTPException(status_code=500, detail={
-            "success": False,
-            "message": f"Lỗi đọc dữ liệu: {str(e)}"
-        })
+def scrape_data():
+    """API endpoint duy nhất - chạy scraper và trả về dữ liệu trực tiếp"""
+    print("🚀 Bắt đầu scraping...")
+    result = run_scraper_sync()
+    print("✅ Hoàn thành scraping")
+    return JSONResponse(result)
 
 if __name__ == "__main__":
     import uvicorn
