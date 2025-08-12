@@ -36,8 +36,34 @@ def run_scraper_sync():
             page.goto("https://www.nosarablue.com/classes")
             print("✅ Đã truy cập trang web thành công")
             
-            time.sleep(5)  # Giảm từ 10 giây xuống 5 giây
-            print("⏳ Đã chờ 5 giây")
+            time.sleep(15)  # Tăng lên 15 giây để trang render đầy đủ trên Render
+            print("⏳ Đã chờ 15 giây")
+            
+            # Chờ thêm cho đến khi calendar xuất hiện
+            max_wait = 30  # Tối đa 30 giây
+            wait_count = 0
+            while wait_count < max_wait:
+                calendar_divs = page.locator('div[role="list"]')
+                if calendar_divs.count() > 0:
+                    buttons = calendar_divs.first.locator('button')
+                    if buttons.count() > 0:
+                        print(f"✅ Calendar đã xuất hiện sau {wait_count + 15} giây")
+                        break
+                time.sleep(1)
+                wait_count += 1
+                if wait_count % 5 == 0:
+                    print(f"⏳ Đang chờ calendar... ({wait_count + 15}s)")
+            
+            if wait_count >= max_wait:
+                print("❌ Không tìm thấy calendar sau 45 giây")
+                return {
+                    "success": False,
+                    "error": "Calendar not found after 45 seconds",
+                    "total_days": 0,
+                    "total_classes": 0,
+                    "daily_summary": [],
+                    "data": []
+                }
             
             classes_data = []
             week_count = 0
