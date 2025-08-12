@@ -139,6 +139,7 @@ def run_scraper_sync():
                                 unique_texts = list(dict.fromkeys([text.strip() for text in all_texts if text.strip()]))
                                 
                                 print(f"    Debug - Lớp {i+1} texts: {unique_texts}")
+                                print(f"    Debug - time_info: {time_info}, duration_info: {duration_info}")
                                 
                                 # Cải thiện logic xử lý thông tin cho từng lớp riêng biệt
                                 # Tìm thời gian (chứa am/pm và có dạng giờ:phút)
@@ -162,11 +163,13 @@ def run_scraper_sync():
                                         'spots' not in text.lower() and 'book' not in text.lower() and
                                         'am' not in text.lower() and 'pm' not in text.lower() and
                                         'hr' not in text.lower() and 'min' not in text.lower() and
-                                        len(text) > 5 and len(text) < 50):
+                                        len(text) > 3 and len(text) < 50):
                                         # Kiểm tra xem có phải tên người không (quá ngắn hoặc quá dài)
-                                        if not (len(text) < 3 or len(text) > 30):
-                                            class_name_info = text
-                                            break
+                                        if not (len(text) < 2 or len(text) > 40):
+                                            # Loại trừ các text chỉ chứa số hoặc ký tự đặc biệt
+                                            if not text.isdigit() and not all(c.isdigit() or c in '.,-()' for c in text):
+                                                class_name_info = text
+                                                break
                                 
                                 # Tìm tên giáo viên (thường là tên người, không chứa từ đặc biệt)
                                 instructor_info = None
