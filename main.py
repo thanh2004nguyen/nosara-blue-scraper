@@ -36,8 +36,8 @@ def run_scraper_sync():
             page.goto("https://www.nosarablue.com/classes")
             print("✅ Đã truy cập trang web thành công")
             
-            time.sleep(10)  # Chờ render
-            print("⏳ Đã chờ 10 giây")
+            time.sleep(5)  # Giảm từ 10 giây xuống 5 giây
+            print("⏳ Đã chờ 5 giây")
             
             classes_data = []
             week_count = 0
@@ -186,9 +186,9 @@ def run_scraper_sync():
                         next_button.click()
                         print(f"✅ Đã click vào button {day_index + 2}")
                         
-                        # Chờ 3 giây để dữ liệu hiện lên
-                        time.sleep(3)
-                        print("⏳ Đã chờ 3 giây")
+                        # Chờ 2 giây để dữ liệu hiện lên (giảm từ 3 giây)
+                        time.sleep(2)
+                        print("⏳ Đã chờ 2 giây")
                     else:
                         print("🏁 Đã xử lý xong tất cả các ngày trong tuần")
                 
@@ -242,9 +242,9 @@ def run_scraper_sync():
                     next_week_button.click()
                     print("✅ Đã click vào nút Next Week")
                     
-                    # Chờ 5 giây để trang load tuần mới
-                    time.sleep(5)
-                    print("⏳ Đã chờ 5 giây để load tuần mới")
+                    # Chờ 3 giây để trang load tuần mới (giảm từ 5 giây)
+                    time.sleep(3)
+                    print("⏳ Đã chờ 3 giây để load tuần mới")
                     
                     # Kiểm tra xem có tuần mới không
                     new_calendar_divs = page.locator('div[role="list"]')
