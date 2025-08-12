@@ -36,13 +36,13 @@ def run_scraper_sync():
             page.goto("https://www.nosarablue.com/classes")
             print("✅ Đã truy cập trang web thành công")
             
-            time.sleep(10)  # Chờ render
-            print("⏳ Đã chờ 10 giây")
+            time.sleep(5)  # Giảm thời gian chờ
+            print("⏳ Đã chờ 5 giây")
             
             classes_data = []
             week_count = 0
             total_processed_days = 0
-            max_days = 30
+            max_days = 5  # Giảm xuống 5 ngày để test
             daily_summary = []  # Lưu tổng kết theo ngày
             
             while True:
@@ -53,6 +53,8 @@ def run_scraper_sync():
                 
                 # Tìm ngày đang được focus
                 calendar_divs = page.locator('div[role="list"]')
+                print(f"🔍 Tìm thấy {calendar_divs.count()} calendar divs")
+                
                 if calendar_divs.count() == 0:
                     print("❌ Không tìm thấy calendar")
                     break
@@ -110,6 +112,8 @@ def run_scraper_sync():
                                 item = list_items.nth(i)
                                 all_texts = item.locator('*').all_text_contents()
                                 unique_texts = list(dict.fromkeys([text.strip() for text in all_texts if text.strip()]))
+                                
+                                print(f"🔍 Raw texts for class {i+1}: {unique_texts}")
                                 
                                 # Cải thiện logic xử lý thông tin
                                 # Tìm thời gian (chứa am/pm và có dạng giờ:phút)
@@ -186,87 +190,21 @@ def run_scraper_sync():
                         next_button.click()
                         print(f"✅ Đã click vào button {day_index + 2}")
                         
-                        # Chờ 3 giây để dữ liệu hiện lên
-                        time.sleep(3)
-                        print("⏳ Đã chờ 3 giây")
+                        # Chờ 2 giây để dữ liệu hiện lên
+                        time.sleep(2)
+                        print("⏳ Đã chờ 2 giây")
                     else:
                         print("🏁 Đã xử lý xong tất cả các ngày trong tuần")
+                        break
                 
                 # Kiểm tra điều kiện dừng sau khi xử lý tuần
                 if total_processed_days >= max_days:
                     print(f"\n🎯 Đã đạt giới hạn {max_days} ngày, dừng scraper")
                     break
                 
-                # Sau khi xử lý xong tuần, tìm và click nút Next Week (›)
-                print(f"\n{'='*50}")
-                print("🔄 Tìm nút Next Week (›)...")
-                
-                # Tìm nút Next Week bằng nhiều cách khác nhau
-                next_week_button = None
-                
-                # Cách 1: Tìm theo text content
-                try:
-                    next_week_button = page.locator('button:has-text("›")').first
-                    if next_week_button.count() > 0:
-                        print("✅ Tìm thấy nút Next Week bằng text ›")
-                    else:
-                        next_week_button = None
-                except:
-                    pass
-                
-                # Cách 2: Tìm theo aria-label
-                if next_week_button is None:
-                    try:
-                        next_week_button = page.locator('button[aria-label*="next"]').first
-                        if next_week_button.count() > 0:
-                            print("✅ Tìm thấy nút Next Week bằng aria-label")
-                        else:
-                            next_week_button = None
-                    except:
-                        pass
-                
-                # Cách 3: Tìm theo class hoặc data attribute
-                if next_week_button is None:
-                    try:
-                        next_week_button = page.locator('button[class*="next"], button[data-testid*="next"]').first
-                        if next_week_button.count() > 0:
-                            print("✅ Tìm thấy nút Next Week bằng class/data-testid")
-                        else:
-                            next_week_button = None
-                    except:
-                        pass
-                
-                # Click nút Next Week nếu tìm thấy
-                if next_week_button is not None:
-                    print("🔄 Click vào nút Next Week...")
-                    next_week_button.click()
-                    print("✅ Đã click vào nút Next Week")
-                    
-                    # Chờ 5 giây để trang load tuần mới
-                    time.sleep(5)
-                    print("⏳ Đã chờ 5 giây để load tuần mới")
-                    
-                    # Kiểm tra xem có tuần mới không
-                    new_calendar_divs = page.locator('div[role="list"]')
-                    if new_calendar_divs.count() > 0:
-                        new_buttons = new_calendar_divs.first.locator('button')
-                        new_total_days = new_buttons.count()
-                        print(f"📅 Tuần mới: Tìm thấy {new_total_days} ngày")
-                        
-                        # Lấy ngày đầu tiên của tuần mới
-                        if new_total_days > 0:
-                            first_day = new_buttons.nth(0)
-                            first_day_date = first_day.get_attribute("aria-label")
-                            print(f"🎯 Ngày đầu tiên tuần mới: {first_day_date}")
-                            
-                            # Tiếp tục vòng lặp while để xử lý tuần mới
-                            continue
-                    else:
-                        print("❌ Không tìm thấy calendar mới")
-                        break
-                else:
-                    print("❌ Không tìm thấy nút Next Week")
-                    break
+                # Bỏ qua Next Week để test nhanh
+                print("🛑 Dừng sau tuần đầu tiên để test")
+                break
             
             browser.close()
             
@@ -298,6 +236,7 @@ def run_scraper_sync():
             
     except Exception as e:
         print("✗ Lỗi:", e)
+        traceback.print_exc()
         return {
             "success": False,
             "error": str(e),
