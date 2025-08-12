@@ -139,7 +139,6 @@ def run_scraper_sync():
                                 unique_texts = list(dict.fromkeys([text.strip() for text in all_texts if text.strip()]))
                                 
                                 print(f"    Debug - Lớp {i+1} texts: {unique_texts}")
-                                print(f"    Debug - time_info: {time_info}, duration_info: {duration_info}")
                                 
                                 # Cải thiện logic xử lý thông tin cho từng lớp riêng biệt
                                 # Tìm thời gian (chứa am/pm và có dạng giờ:phút)
@@ -190,6 +189,10 @@ def run_scraper_sync():
                                     if 'spots' in text.lower() and len(text) < 30:
                                         description_info = text
                                         break
+                                
+                                # Debug output sau khi parse xong
+                                print(f"    Debug - time_info: {time_info}, duration_info: {duration_info}")
+                                print(f"    Debug - class_name_info: {class_name_info}, instructor_info: {instructor_info}")
                                 
                                 class_info = {
                                     'event_date': current_date,
